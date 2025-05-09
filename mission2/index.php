@@ -103,14 +103,14 @@
             $conn->query($sql);
         }
 
-        $sql = "SELECT * FROM comment ORDER BY id DESC"; // plus récent d'abord
+        $sql = "SELECT * FROM comment ORDER BY id DESC";
         $result = $conn->query($sql);
 
         if ($result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
                 echo "<div class='comment'>";
-                echo "<div class='id'>#{$row["id"]}</div>";
-                echo "<div class='content'>" . $row["content"] . "</div>";
+                echo "<div class='id'>#" . htmlspecialchars($row["id"]) . "</div>";
+                echo "<div class='content'>" . htmlspecialchars($row["content"]) . "</div>";
                 echo "</div>";
             }
         } else {
