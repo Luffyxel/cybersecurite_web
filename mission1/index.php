@@ -25,7 +25,7 @@
             width: 100%;
             max-width: 400px;
         }
-
+        
         input[type="text"],
         input[type="password"] {
             padding: 12px;
@@ -69,11 +69,14 @@
             $env = parse_ini_file('.env');
             $conn = new mysqli($env["SERVERNAME"], $env["USERNAME"], $env["PASSWORD"]);
 
-            if ($_POST["email"] && $_POST["password"]) {
-                $sql = "USE {$env["DATABASE"]}";
-                $conn->query($sql);
-                $sql = "SELECT * FROM user WHERE email='{$_POST["email"]}' AND password='{$_POST["password"]}'";
-                $result = $conn->query($sql);
+        if (!empty($_POST["email"]) && !empty($_POST["password"])) {
+            $email = $_POST["email"];
+            $password = $_POST["password"];
+
+            $stmt = $conn->prepare("SELECT * FROM user WHERE email = ? AND password = ?");
+            $stmt->bind_param("ss", $email, $password);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
                 if ($result->num_rows > 0) {
                     header('Location: dashboard.php');
