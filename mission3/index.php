@@ -1,3 +1,10 @@
+<?php
+session_start();
+// Génère un token CSRF si absent
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -70,41 +77,44 @@
         <h2 style="text-align:center;">Inscription</h2>
         <input type="text" name="email" placeholder="Email" required>
         <input type="password" name="password" placeholder="Mot de passe" required>
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
         <button type="submit">Créer un compte</button>
 
         <?php
         if ($_SERVER["REQUEST_METHOD"] === "POST") {
-            $env = parse_ini_file('.env');
-            $conn = new mysqli($env["SERVERNAME"], $env["USERNAME"], $env["PASSWORD"], $env["DATABASE"]);
-
-            if ($conn->connect_error) {
-                die("<div class='error'>Erreur de connexion à la base</div>");
-            }
-
-            if (!empty($_POST["email"]) && !empty($_POST["password"])) {
-                $email = $_POST["email"];
-                $password = $_POST["password"];
-
-                // Hash le mot de passe avant de l'enregistrer
-                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-
-                // Insertion de l'utilisateur
-                $sql = "INSERT INTO user (email, password) VALUES ('$email', '$hashedPassword')";
-                if ($conn->query($sql) === TRUE) {
-                    // Récupérer l'ID de l'utilisateur juste après l'insertion
-                    $userId = $conn->insert_id; // Utilise l'ID auto-incrémenté généré par l'insertion
-
-                    // Redirige vers le profil utilisateur
-                    header("Location: profil.php?id=$userId");
-                    exit();
-                } else {
-                    echo "<div class='error'>Erreur lors de l'inscription</div>";
-                }
+            // Vérifie le token CSRF
+            if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+                echo "<div class='error'>Token CSRF invalide</div>";
             } else {
-                echo "<div class='error'>Tous les champs sont requis</div>";
-            }
+                $env = parse_ini_file('.env');
+                $conn = new mysqli($env["SERVERNAME"], $env["USERNAME"], $env["PASSWORD"], $env["DATABASE"]);
 
-            $conn->close();
+                if ($conn->connect_error) {
+                    die("<div class='error'>Erreur de connexion à la base</div>");
+                }
+
+                if (!empty($_POST["email"]) && !empty($_POST["password"])) {
+                    $email = $_POST["email"];
+                    $password = $_POST["password"];
+
+                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+                    $sql = "INSERT INTO user (email, password) VALUES ('$email', '$hashedPassword')";
+                    if ($conn->query($sql) === TRUE) {
+
+                        $userId = $conn->insert_id;
+
+                        header("Location: profil.php?id=$userId");
+                        exit();
+                    } else {
+                        echo "<div class='error'>Erreur lors de l'inscription</div>";
+                    }
+                } else {
+                    echo "<div class='error'>Tous les champs sont requis</div>";
+                }
+
+                $conn->close();
+            }
         }
         ?>
     </form>

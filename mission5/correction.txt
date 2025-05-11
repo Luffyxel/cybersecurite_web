@@ -1,0 +1,6 @@
+avec apach crée une configuration de ce type : 
+
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>

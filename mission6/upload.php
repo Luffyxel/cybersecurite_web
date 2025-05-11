@@ -2,29 +2,46 @@
 $uploadDir = 'uploads/';
 $message = '';
 
-// Create the upload directory if it doesn't exist
+// Crée le dossier d'upload s'il n'existe pas
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Handle file upload if POST request
+// Gestion de l'upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['myfile']) && $_FILES['myfile']['error'] === 0) {
         $filename = basename($_FILES['myfile']['name']);
-        $fileType = pathinfo($filename, PATHINFO_EXTENSION);
+        $fileType = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         $targetFile = $uploadDir . $filename;
 
-        if (move_uploaded_file($_FILES['myfile']['tmp_name'], $targetFile)) {
-            $message = "✅ File uploaded successfully: " . htmlspecialchars($filename);
+        // Interdit les fichiers PHP et assimilés
+        $forbidden = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'php8'];
+        if (in_array($fileType, $forbidden)) {
+            $message = "❌ Upload interdit : les fichiers PHP ne sont pas autorisés.";
         } else {
-            $message = "❌ Error: Could not move uploaded file.";
+            // Optionnel : vérifier le type MIME pour plus de sécurité
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $_FILES['myfile']['tmp_name']);
+            finfo_close($finfo);
+
+            // Liste blanche d'extensions autorisées (exemple : images et txt)
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'txt', 'pdf'];
+            if (!in_array($fileType, $allowed)) {
+                $message = "❌ Seuls les fichiers images et txt/pdf sont autorisés.";
+            } else {
+                if (move_uploaded_file($_FILES['myfile']['tmp_name'], $targetFile)) {
+                    $message = "✅ File uploaded successfully: " . htmlspecialchars($filename);
+                } else {
+                    $message = "❌ Error: Could not move uploaded file.";
+                }
+            }
         }
     } else {
         $message = "❌ Upload error: " . $_FILES['myfile']['error'];
     }
 }
 
-// Get list of files
+// Liste des fichiers
 $files = array_diff(scandir($uploadDir), ['.', '..']);
 ?>
 
@@ -99,7 +116,7 @@ $files = array_diff(scandir($uploadDir), ['.', '..']);
         <h1>📁 PHP Drive</h1>
 
         <?php if (!empty($message)): ?>
-            <div class="message"><?php echo $message; ?></div>
+            <div class="message"><?php echo htmlspecialchars($message); ?></div>
         <?php endif; ?>
 
         <h3>Uploaded Files:</h3>

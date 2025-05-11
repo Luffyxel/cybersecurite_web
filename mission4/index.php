@@ -1,3 +1,11 @@
+<?php
+session_start();
+// Génère une question captcha si besoin
+if (empty($_SESSION['captcha_a']) || empty($_SESSION['captcha_b'])) {
+    $_SESSION['captcha_a'] = rand(1, 10);
+    $_SESSION['captcha_b'] = rand(1, 10);
+}
+?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -62,29 +70,48 @@
         <h2 style="text-align:center;">Connexion</h2>
         <input type="text" name="email" placeholder="Email" required>
         <input type="password" name="password" placeholder="Mot de passe" required>
+        <label>
+            Combien font <?php echo $_SESSION['captcha_a'] . " + " . $_SESSION['captcha_b']; ?> ?
+            <input type="text" name="captcha" required>
+        </label>
         <button type="submit">Se connecter</button>
 
         <?php
         if ($_SERVER["REQUEST_METHOD"] === "POST") {
-            $env = parse_ini_file('.env');
-            $conn = new mysqli($env["SERVERNAME"], $env["USERNAME"], $env["PASSWORD"]);
-
-            if ($_POST["email"] && $_POST["password"]) {
-                $sql = "USE {$env["DATABASE"]}";
-                $conn->query($sql);
-                $sql = "SELECT * FROM user WHERE email='{$_POST["email"]}' AND password='{$_POST["password"]}'";
-                $result = $conn->query($sql);
-
-                if ($result->num_rows > 0) {
-                    while ($row = $result->fetch_assoc()) {
-                        header("Location: profil.php?id={$row["id"]}");
-                    }
-                    exit();
+            $captcha_ok = false;
+            if (isset($_POST['captcha'])) {
+                $expected = $_SESSION['captcha_a'] + $_SESSION['captcha_b'];
+                if ((int)$_POST['captcha'] === $expected) {
+                    $captcha_ok = true;
                 } else {
-                    echo "<div class='error'>Email ou mot de passe incorrect</div>";
+                    echo "<div class='error'>Captcha incorrect</div>";
                 }
+                // Regénère une nouvelle question pour la prochaine tentative
+                $_SESSION['captcha_a'] = rand(1, 10);
+                $_SESSION['captcha_b'] = rand(1, 10);
             }
-            $conn->close();
+
+            if ($captcha_ok) {
+                $env = parse_ini_file('.env');
+                $conn = new mysqli($env["SERVERNAME"], $env["USERNAME"], $env["PASSWORD"]);
+
+                if ($_POST["email"] && $_POST["password"]) {
+                    $sql = "USE {$env["DATABASE"]}";
+                    $conn->query($sql);
+                    $sql = "SELECT * FROM user WHERE email='{$_POST["email"]}' AND password='{$_POST["password"]}'";
+                    $result = $conn->query($sql);
+
+                    if ($result->num_rows > 0) {
+                        while ($row = $result->fetch_assoc()) {
+                            header("Location: profil.php?id={$row["id"]}");
+                        }
+                        exit();
+                    } else {
+                        echo "<div class='error'>Email ou mot de passe incorrect</div>";
+                    }
+                }
+                $conn->close();
+            }
         }
         ?>
     </form>
